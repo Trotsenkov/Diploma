@@ -19,6 +19,9 @@ public class Host : MonoBehaviour
     {
         playerPrefab = Resources.Load<Player>("Player");
 
+        if (NetworkManager.isHost)
+            enabled = true;
+
         if (!enabled)
             return;
 
@@ -37,7 +40,7 @@ public class Host : MonoBehaviour
     {
         m_Driver = NetworkDriver.Create();
         var endpoint = NetworkEndPoint.AnyIpv4;
-        endpoint.Port = 9000;
+        endpoint.Port = NetworkManager.IPPort;
         if (m_Driver.Bind(endpoint) != 0)
             Debug.Log("Failed to bind to port 9000");
         else

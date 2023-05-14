@@ -10,8 +10,8 @@ public class Client : MonoBehaviour
     private Player playerPrefab;
     private List<Player> players = new List<Player>();
 
-    [SerializeField] private string connectionAdress;
-    [SerializeField] private ushort connectionPort;
+    //[SerializeField] private string connectionAdress;
+    //[SerializeField] private ushort connectionPort;
 
     public NetworkDriver m_Driver;
     public NetworkConnection m_Connection;
@@ -19,6 +19,8 @@ public class Client : MonoBehaviour
 
     private void Awake()
     {
+        if (!NetworkManager.isHost)
+            enabled = true;
         playerPrefab = Resources.Load<Player>("Player");
     }
 
@@ -27,7 +29,7 @@ public class Client : MonoBehaviour
         m_Driver = NetworkDriver.Create();
         m_Connection = default(NetworkConnection);
 
-        var endpoint = NetworkEndPoint.Parse(connectionAdress, connectionPort);
+        var endpoint = NetworkEndPoint.Parse(NetworkManager.IPAddress, NetworkManager.IPPort);
         m_Connection = m_Driver.Connect(endpoint);
     }
 
