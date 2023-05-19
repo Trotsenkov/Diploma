@@ -5,9 +5,10 @@ public class Player : MonoBehaviour
 {
     [SerializeField] public float speed;
     public new Rigidbody2D rigidbody;
-    private Bullet bulletPrefab;
 
-    public static readonly Color[] colors = { Color.white, Color.green, Color.red, Color.yellow, Color.cyan, Color.blue, Color.magenta };
+    private Host host;
+
+    public static readonly Color[] colors = { Color.red, Color.yellow / 2 + Color.red, Color.yellow, Color.green, Color.cyan, Color.blue, Color.magenta };
     public Color color;
 
     public string Name;
@@ -33,7 +34,7 @@ public class Player : MonoBehaviour
     private void Start()
     {
         rigidbody = GetComponent<Rigidbody2D>();
-        bulletPrefab = Resources.Load<Bullet>("Bullet");
+        host = GameObject.FindObjectOfType<Host>();
 
         color = colors[colorCode];
 
@@ -45,17 +46,26 @@ public class Player : MonoBehaviour
         if (!local)
             return;
 
-        rigidbody.MovePosition(transform.position + new Vector3(speed * Input.GetAxis("Horizontal"), speed * Input.GetAxis("Vertical")));
+        if (NetworkManager.isHost)
+        {
+            rigidbody.MovePosition(transform.position + speed * new Vector3(Input.GetKey(KeyCode.D) ? 1 : Input.GetKey(KeyCode.A) ? -1 : 0, Input.GetKey(KeyCode.W) ? 1 : Input.GetKey(KeyCode.S) ? -1 : 0));
+
+            if (Input.GetMouseButtonDown(0))
+                host.SpawnBulletForPlayer(this);//Instantiate(bulletPrefab, transform.position + transform.up, transform.rotation);
+        }
 
         Vector3 mouseScreenPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         Vector3 lookAt = mouseScreenPosition;
         float AngleRad = Mathf.Atan2(lookAt.y - transform.position.y, lookAt.x - transform.position.x);
         float AngleDeg = (180 / Mathf.PI) * AngleRad - 90;
         transform.rotation = Quaternion.Euler(0, 0, AngleDeg);
-
-        if (Input.GetMouseButtonDown(0))
-            Instantiate(bulletPrefab, transform.position + transform.up, transform.rotation);
     }
+
+    private void FixedUpdate()
+    {
+        rigidbody.velocity /= 1.2f;
+    }
+
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if (collision.gameObject.GetComponent<Enemy>() != null)
@@ -64,7 +74,5 @@ public class Player : MonoBehaviour
 
             HP -= 1;
         }
-
-
     }
 }

@@ -1,10 +1,10 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class Bullet : MonoBehaviour
 {
     [SerializeField] private float speed;
+    public ushort ID;
+    public Host host;
 
     void Update()
     {
@@ -13,9 +13,14 @@ public class Bullet : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
+        if (!NetworkManager.isHost)
+            return;
+
         if (collision.gameObject.GetComponent<Enemy>() != null)
             Destroy(collision.gameObject);
         
         Destroy(gameObject);
+
+        host.RemoveBullet(ID);
     }
 }

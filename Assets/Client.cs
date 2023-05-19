@@ -10,8 +10,8 @@ public class Client : MonoBehaviour
     private Player playerPrefab;
     private List<Player> players = new List<Player>();
 
-    //[SerializeField] private string connectionAdress;
-    //[SerializeField] private ushort connectionPort;
+    private Bullet bulletPrefab;
+    private Dictionary<ushort, Bullet> activeBullets = new ();
 
     public NetworkDriver m_Driver;
     public NetworkConnection m_Connection;
@@ -21,7 +21,9 @@ public class Client : MonoBehaviour
     {
         if (!NetworkManager.isHost)
             enabled = true;
+
         playerPrefab = Resources.Load<Player>("Player");
+        bulletPrefab = Resources.Load<Bullet>("Bullet");
     }
 
     void Start()
@@ -59,6 +61,7 @@ public class Client : MonoBehaviour
             {
                 Message message = stream.RecieveSSPMessage();
 
+                #region Connection
                 if (message is ConnectAck)
                 {
                     Debug.Log("Connect Ack!");
@@ -67,11 +70,14 @@ public class Client : MonoBehaviour
                     m_Driver.SendSSPMessage(m_Connection, new ConnectOk());
                     Connected = true;
                 }
+                #endregion
+
+                #region ServerBehaviour
                 else if (message is UpdatePlayersList)
                 {
                     Debug.Log("UpdatePlayersList!");
                     UpdatePlayersList msg = (UpdatePlayersList)message;
-                    foreach(System.Tuple<string, byte> data in msg.playerDatas)
+                    foreach (System.Tuple<string, byte> data in msg.playerDatas)
                     {
                         if (players.Select(player => player.colorCode).Contains(data.Item2))
                             continue;
@@ -88,12 +94,41 @@ public class Client : MonoBehaviour
                         players.Add(player);
                     }
                 }
+                else if (message is UpdatePlayerPosition)
+                {
+                    //Debug.Log("UpdatePlayersPosition!");
+                    UpdatePlayerPosition msg = (UpdatePlayerPosition)message;
+                    Player plr = players.Find(player => player.colorCode == msg.playerCode);
+                    if (plr == null)
+                        continue;//Ask for UpdatePlayersList
 
+                    plr.transform.position = msg.position;
+                    Debug.Log(msg.position);
+                }
+                else if (message is AddBullet)
+                {
+                    AddBullet msg = (AddBullet)message;
+                    activeBullets.Add(msg.bulletID, Instantiate(bulletPrefab, msg.position, Quaternion.Euler(0, 0, msg.rotationZ)));
+                }
+                else if (message is RemBullet)
+                {
+                    RemBullet msg = (RemBullet)message;
+                    Destroy(activeBullets[msg.bulletID].gameObject);
+                    activeBullets.Remove(msg.bulletID);
+                }
+                #endregion
+
+                #region Commands
                 else if (message is CommandLook)
                 {
                     CommandLook msg = (CommandLook)message;
-                    players.Find(player => player.colorCode == msg.playerCode).transform.rotation = Quaternion.Euler(0, 0, msg.rotationZ);
+                    Player plr = players.Find(player => player.colorCode == msg.playerCode);
+                    if (plr == null)
+                        continue;//Ask for UpdatePlayersList
+
+                    plr.transform.rotation = Quaternion.Euler(0, 0, msg.rotationZ);
                 }
+                #endregion
             }
             else if (cmd == NetworkEvent.Type.Disconnect)
             {
@@ -101,13 +136,16 @@ public class Client : MonoBehaviour
                 m_Connection = default(NetworkConnection);
             }
         }
+
+        if (Input.GetMouseButtonDown(0))
+            m_Driver.SendSSPMessage(m_Connection, new CommandShoot());
     }
 
     private void FixedUpdate()
     {
         //m_Driver.ScheduleUpdate().Complete();
 
-        if (!m_Connection.IsCreated || !Connected)
+        if (!m_Connection.IsCreated || !Connected || player == null)
         {
             return;
         }

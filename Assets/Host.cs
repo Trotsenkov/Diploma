@@ -1,5 +1,4 @@
 using UnityEngine;
-
 using Unity.Collections;
 using Unity.Networking.Transport;
 using System.Collections.Generic;
@@ -9,7 +8,13 @@ public class Host : MonoBehaviour
     private Player playerPrefab;
     private Player player;
     private List<Player> players = new List<Player>(); //delete
-    private List<byte> freeColorCodes = new (); 
+    private List<byte> freeColorCodes = new ();
+
+    private Bullet bulletPrefab;
+    private Dictionary<ushort, Bullet> activeBullets = new ();
+    private ushort _bulletCounter;
+    private ushort bulletCounter => (ushort)(_bulletCounter++ % 1500);
+
 
     public NetworkDriver m_Driver;
     private NativeList<NetworkConnection> m_Connections; //delete
@@ -18,6 +23,7 @@ public class Host : MonoBehaviour
     private void Awake()
     {
         playerPrefab = Resources.Load<Player>("Player");
+        bulletPrefab = Resources.Load<Bullet>("Bullet");
 
         if (NetworkManager.isHost)
             enabled = true;
@@ -60,8 +66,6 @@ public class Host : MonoBehaviour
 
     void Update()
     {
-        //    foreach (Player player__ in players)
-        //        player__.transform.rotation = Quaternion.Euler(0, 0, player.transform.rotation.eulerAngles.z);
         m_Driver.ScheduleUpdate().Complete();
 
         // Clean up connections
@@ -121,19 +125,21 @@ public class Host : MonoBehaviour
                         foreach(var connection in m_Connections)
                             m_Driver.SendSSPMessage(connection, msg);
                     }
+
                     //Commands
                     else if (message.Code == MessageCode.CommandMove)
                     {
                         CommandMove msg = (CommandMove)message;
-                        //Debug.Log("CommandMove " + msg.direction * clients[m_Connections[i]].speed);
-                        //clients[m_Connections[i]].rigidbody.MovePosition(clients[m_Connections[i]].transform.position + new Vector3(0, (msg.direction - 1) * clients[m_Connections[i]].speed));
                         clients[m_Connections[i]].rigidbody.MovePosition(clients[m_Connections[i]].transform.position + (Vector3)msg.direction * clients[m_Connections[i]].speed);
                     }
                     else if (message.Code == MessageCode.CommandLook)
                     {
                         CommandLook msg = (CommandLook)message;
-                        //clients[m_Connections[i]].rigidbody.MovePosition(clients[m_Connections[i]].transform.position + new Vector3(0, (msg.direction - 1) * clients[m_Connections[i]].speed));
                         clients[m_Connections[i]].transform.rotation = Quaternion.Euler(0, 0, msg.rotationZ);
+                    }
+                    else if (message.Code == MessageCode.CommandShoot)
+                    {
+                        SpawnBulletForPlayer(clients[m_Connections[i]]);
                     }
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)
@@ -146,12 +152,33 @@ public class Host : MonoBehaviour
 
         foreach(NetworkConnection connection in clients.Keys)
             foreach(Player player in players)
+            {
                 if (clients[connection] != player)
                     m_Driver.SendSSPMessage(connection, new CommandLook() { playerCode = player.colorCode, rotationZ = player.transform.rotation.eulerAngles.z });
 
-        /*foreach (NetworkConnection connection in m_Connections)
-            foreach (Player player in players)
-                if (clients[connection] != player)
-                    m_Driver.SendSSPMessage(connection, new CommandLook() { playerCode = player.colorCode, rotationZ = player.transform.rotation.eulerAngles.z });*/
+                m_Driver.SendSSPMessage(connection, new UpdatePlayerPosition() { playerCode = player.colorCode, position = player.transform.position });
+            }
+    }
+
+    public void SpawnBulletForPlayer(Player player)
+    {
+        ushort ID = bulletCounter;
+        activeBullets.Add(ID, Instantiate(bulletPrefab, player.transform.position + player.transform.up, player.transform.rotation));
+        activeBullets[ID].ID = ID;
+        activeBullets[ID].host = this;
+
+        foreach (NetworkConnection connection in clients.Keys)
+            m_Driver.SendSSPMessage(connection, new AddBullet() { bulletID = ID, position = player.transform.position + player.transform.up, rotationZ = player.transform.rotation.eulerAngles.z });
+    }
+
+    public void RemoveBullet(ushort ID)
+    {
+        if (activeBullets.ContainsKey(ID))
+        {
+            activeBullets.Remove(ID);
+        }
+
+        foreach (NetworkConnection connection in clients.Keys)
+            m_Driver.SendSSPMessage(connection, new RemBullet() { bulletID = ID });
     }
 }

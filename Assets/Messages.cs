@@ -95,9 +95,9 @@ public class UpdatePlayersList : Message
 
 public class UpdatePlayerPosition : Message
 {
-    public byte colorCode;
+    public byte playerCode;
     public Vector2 position;
-    public float rotationZ;
+    //public float rotationZ;
     public UpdatePlayerPosition()
     {
         Code = MessageCode.UpdatePlayerPosition;
@@ -195,7 +195,7 @@ public static class MessageExtensions
         //ServerNehaviour
         else if (code == MessageCode.UpdatePlayersList)
         {
-            UpdatePlayersList message = new UpdatePlayersList();
+            UpdatePlayersList message = new ();
 
             message.amount = stream.ReadByte();
             message.playerDatas = new Tuple<string, byte>[message.amount];
@@ -207,14 +207,14 @@ public static class MessageExtensions
         }
 
         else if (code == MessageCode.UpdatePlayerPosition)
-            return new UpdatePlayerPosition() { colorCode = stream.ReadByte(), position = new Vector2(stream.ReadFloat(), stream.ReadFloat()), rotationZ = stream.ReadFloat() };
+            return new UpdatePlayerPosition() { playerCode = stream.ReadByte(), position = new Vector2(stream.ReadFloat(), stream.ReadFloat())/*, rotationZ = stream.ReadFloat()*/ };
 
         else if (code == MessageCode.UpdatePlayerHP)
             return new UpdatePlayerHP() { colorCode = stream.ReadByte(), HP = stream.ReadByte() };
 
         else if (code == MessageCode.SetEnemies)
         {
-            SetEnemies message = new SetEnemies();
+            SetEnemies message = new ();
 
             message.amount = stream.ReadByte();
             message.enemyPositions = new Vector2[message.amount];
@@ -226,10 +226,10 @@ public static class MessageExtensions
         }
 
         else if (code == MessageCode.AddBullet)
-            return new AddBullet() { bulletID = stream.ReadByte(), position = new Vector2(stream.ReadFloat(), stream.ReadFloat()), rotationZ = stream.ReadFloat() };
+            return new AddBullet() { bulletID = stream.ReadUShort(), position = new Vector2(stream.ReadFloat(), stream.ReadFloat()), rotationZ = stream.ReadFloat() };
 
         else if (code == MessageCode.RemBullet)
-            return new RemBullet() { bulletID = stream.ReadByte() };
+            return new RemBullet() { bulletID = stream.ReadUShort() };
 
         //Commands
         else if (code == MessageCode.CommandMove)
@@ -288,6 +288,26 @@ public static class MessageExtensions
                 writer.WriteByte(data.Item2);
             }
         }
+        else if (message is UpdatePlayerPosition)
+        {
+            UpdatePlayerPosition msg = (UpdatePlayerPosition)message;
+            writer.WriteByte(msg.playerCode);
+            writer.WriteFloat(msg.position.x);
+            writer.WriteFloat(msg.position.y);
+        }
+        else if (message is AddBullet)
+        {
+            AddBullet msg = (AddBullet)message;
+            writer.WriteUShort(msg.bulletID);
+            writer.WriteFloat(msg.position.x);
+            writer.WriteFloat(msg.position.y);
+            writer.WriteFloat(msg.rotationZ);
+        }
+        else if (message is RemBullet)
+        {
+            RemBullet msg = (RemBullet)message;
+            writer.WriteUShort(msg.bulletID);
+        }
 
         //Commands
         else if (message is CommandMove)
@@ -296,14 +316,12 @@ public static class MessageExtensions
             byte dir = (byte)(msg.direction.x + (byte)msg.direction.y * 10 + 11);
             writer.WriteByte(dir);
         }
-
         else if (message is CommandLook)
         {
             CommandLook msg = (CommandLook)message;
             writer.WriteByte(msg.playerCode);
             writer.WriteFloat(msg.rotationZ);
         }
-
         else if (message is CommandShoot)
         { }
 
