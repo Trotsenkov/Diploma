@@ -96,14 +96,29 @@ public class Client : MonoBehaviour
                 }
                 else if (message is UpdatePlayerPosition)
                 {
-                    //Debug.Log("UpdatePlayersPosition!");
                     UpdatePlayerPosition msg = (UpdatePlayerPosition)message;
+
                     Player plr = players.Find(player => player.colorCode == msg.playerCode);
                     if (plr == null)
                         continue;//Ask for UpdatePlayersList
 
                     plr.transform.position = msg.position;
-                    Debug.Log(msg.position);
+                }
+                else if (message is UpdatePlayerHP)
+                {
+                    UpdatePlayerHP msg = (UpdatePlayerHP)message;
+
+                    Player plr = players.Find(player => player.colorCode == msg.colorCode);
+                    if (plr == null)
+                        continue;//Ask for UpdatePlayersList
+
+                    plr.HP = msg.HP;
+                }
+                else if (message is SetEnemies)
+                {
+                    SetEnemies msg = (SetEnemies)message;
+                    Enemy_Spawner.SetEnemies(msg.amount, msg.enemyPositions);
+                    Debug.Log(msg.amount);
                 }
                 else if (message is AddBullet)
                 {
@@ -143,8 +158,6 @@ public class Client : MonoBehaviour
 
     private void FixedUpdate()
     {
-        //m_Driver.ScheduleUpdate().Complete();
-
         if (!m_Connection.IsCreated || !Connected || player == null)
         {
             return;

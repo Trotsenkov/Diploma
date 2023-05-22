@@ -4,6 +4,7 @@ using System.Linq;
 [RequireComponent(typeof(Rigidbody2D))]
 public class Enemy : MonoBehaviour
 {
+    public ushort ID;
     [SerializeField] private float speed;
     private new Rigidbody2D rigidbody;
 
@@ -17,6 +18,9 @@ public class Enemy : MonoBehaviour
 
     void Update()
     {
+        if (!NetworkManager.isHost)
+            return;
+
         Transform player = players.Where(player => player != null).OrderBy(player => Vector3.Distance(player.position, transform.position)).FirstOrDefault() ?? transform;
 
         rigidbody.MovePosition(transform.position + speed * (player.position - transform.position).normalized);

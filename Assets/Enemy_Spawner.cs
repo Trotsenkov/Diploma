@@ -1,10 +1,11 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Enemy_Spawner : MonoBehaviour
 {
-    private Enemy prefab;
+    private static Enemy prefab;
+    private static readonly List<Enemy> enemies = new ();
+    public static IReadOnlyList<Enemy> Enemies => enemies;
 
     private float time = 0;
     [SerializeField] private float delay = 4.5f;
@@ -18,6 +19,9 @@ public class Enemy_Spawner : MonoBehaviour
 
     void Update()
     {
+        if (!NetworkManager.isHost)
+            return;
+
         time += Time.deltaTime;
 
         if (time > delay)
@@ -35,8 +39,33 @@ public class Enemy_Spawner : MonoBehaviour
                     position = new Vector2(pos - mapSize.x, (Random.Range(-1, 1) * 2 + 1) * mapSize.y);
                 else
                     position = new Vector2((Random.Range(-1, 1) * 2 + 1) * mapSize.x, pos - mapSize.x * 2 - mapSize.y);
-                Instantiate(prefab, position, Quaternion.identity);
+
+                enemies.Add(Instantiate(prefab, position, Quaternion.identity));
             }
         }
+    }
+
+    public static void SetEnemies(byte amount, Vector2[] positions)
+    {
+        for(int i = 0; i < amount; i++)
+        {
+            if (i < enemies.Count)
+            {
+                enemies[i].gameObject.SetActive(true);
+                enemies[i].transform.position = positions[i];
+            }
+            else
+                enemies.Add(Instantiate(prefab, positions[i], Quaternion.identity));
+        }
+
+        if (enemies.Count >= amount)
+            for (int i = amount; i < enemies.Count; i++)
+                enemies[i].gameObject.SetActive(false);
+    }
+
+    public static void DeleteEnemy(Enemy enemy)
+    {
+        enemies.Remove(enemy);
+        Destroy(enemy.gameObject);
     }
 }

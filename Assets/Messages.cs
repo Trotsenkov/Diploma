@@ -251,7 +251,7 @@ public static class MessageExtensions
 
     public static void SendSSPMessage(this NetworkDriver m_Driver, NetworkConnection m_Connection, Message message)
     {
-        //Connection
+        #region Connection
         m_Driver.BeginSend(m_Connection, out var writer);
         writer.WriteByte((byte)message.Code);
 
@@ -276,8 +276,9 @@ public static class MessageExtensions
         { }
         else if (message is DisconnectOk)
         { }
+        #endregion
 
-        //ServerBehaviour
+        #region ServerBehaviour
         else if (message is UpdatePlayersList)
         {
             UpdatePlayersList msg = (UpdatePlayersList)message;
@@ -295,6 +296,22 @@ public static class MessageExtensions
             writer.WriteFloat(msg.position.x);
             writer.WriteFloat(msg.position.y);
         }
+        else if (message is UpdatePlayerHP)
+        {
+            UpdatePlayerHP msg = (UpdatePlayerHP)message;
+            writer.WriteByte(msg.colorCode);
+            writer.WriteByte(msg.HP);
+        }
+        else if (message is SetEnemies)
+        {
+            SetEnemies msg = (SetEnemies)message;
+            writer.WriteByte(msg.amount);
+            foreach(Vector2 position in msg.enemyPositions)
+            {
+                writer.WriteFloat(position.x);
+                writer.WriteFloat(position.y);
+            }
+        }
         else if (message is AddBullet)
         {
             AddBullet msg = (AddBullet)message;
@@ -308,8 +325,9 @@ public static class MessageExtensions
             RemBullet msg = (RemBullet)message;
             writer.WriteUShort(msg.bulletID);
         }
+        #endregion
 
-        //Commands
+        #region Commands
         else if (message is CommandMove)
         {
             CommandMove msg = (CommandMove)message;
@@ -324,6 +342,7 @@ public static class MessageExtensions
         }
         else if (message is CommandShoot)
         { }
+        #endregion
 
         m_Driver.EndSend(writer);
     }

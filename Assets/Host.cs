@@ -97,6 +97,7 @@ public class Host : MonoBehaviour
             {
                 if (cmd == NetworkEvent.Type.Data)
                 {
+                    #region Connection
                     Message message = stream.RecieveSSPMessage();
                     if (message.Code == MessageCode.ConnectReq)
                     {
@@ -125,8 +126,9 @@ public class Host : MonoBehaviour
                         foreach(var connection in m_Connections)
                             m_Driver.SendSSPMessage(connection, msg);
                     }
+                    #endregion
 
-                    //Commands
+                    #region Commands
                     else if (message.Code == MessageCode.CommandMove)
                     {
                         CommandMove msg = (CommandMove)message;
@@ -141,6 +143,7 @@ public class Host : MonoBehaviour
                     {
                         SpawnBulletForPlayer(clients[m_Connections[i]]);
                     }
+                    #endregion
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)
                 {
@@ -150,14 +153,28 @@ public class Host : MonoBehaviour
             }
         }
 
-        foreach(NetworkConnection connection in clients.Keys)
-            foreach(Player player in players)
+        foreach (NetworkConnection connection in clients.Keys)
+        {
+            foreach (Player player in players)
             {
                 if (clients[connection] != player)
                     m_Driver.SendSSPMessage(connection, new CommandLook() { playerCode = player.colorCode, rotationZ = player.transform.rotation.eulerAngles.z });
 
                 m_Driver.SendSSPMessage(connection, new UpdatePlayerPosition() { playerCode = player.colorCode, position = player.transform.position });
             }
+
+            byte amount = (byte)Enemy_Spawner.Enemies.Count;
+            Vector2[] positions = new Vector2[amount];
+            for (int i = 0; i < amount; i++)
+                positions[i] = Enemy_Spawner.Enemies[i].transform.position;
+            m_Driver.SendSSPMessage(connection, new SetEnemies() { amount = amount, enemyPositions = positions });
+        }
+    }
+
+    public void SetPlayerHP(Player player)
+    {
+        foreach (NetworkConnection connection in clients.Keys)
+            m_Driver.SendSSPMessage(connection, new UpdatePlayerHP() { colorCode = player.colorCode, HP = player.HP }) ;
     }
 
     public void SpawnBulletForPlayer(Player player)

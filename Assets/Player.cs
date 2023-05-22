@@ -15,9 +15,9 @@ public class Player : MonoBehaviour
     public byte colorCode;
     public bool local;
 
-    public const int MaxHP = 5;
-    private int hp = MaxHP;
-    private int HP
+    public const byte MaxHP = 5;
+    private byte hp = MaxHP;
+    public byte HP
     {
         get { return hp; }
         set
@@ -51,7 +51,7 @@ public class Player : MonoBehaviour
             rigidbody.MovePosition(transform.position + speed * new Vector3(Input.GetKey(KeyCode.D) ? 1 : Input.GetKey(KeyCode.A) ? -1 : 0, Input.GetKey(KeyCode.W) ? 1 : Input.GetKey(KeyCode.S) ? -1 : 0));
 
             if (Input.GetMouseButtonDown(0))
-                host.SpawnBulletForPlayer(this);//Instantiate(bulletPrefab, transform.position + transform.up, transform.rotation);
+                host.SpawnBulletForPlayer(this);
         }
 
         Vector3 mouseScreenPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
@@ -68,11 +68,15 @@ public class Player : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
+        if (!NetworkManager.isHost)
+            return;
+
         if (collision.gameObject.GetComponent<Enemy>() != null)
         {
-            Destroy(collision.gameObject);
+            Enemy_Spawner.DeleteEnemy(collision.gameObject.GetComponent<Enemy>());
 
             HP -= 1;
+            host.SetPlayerHP(this);
         }
     }
 }

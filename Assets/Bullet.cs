@@ -17,7 +17,7 @@ public class Bullet : MonoBehaviour
             return;
 
         if (collision.gameObject.GetComponent<Enemy>() != null)
-            Destroy(collision.gameObject);
+            Enemy_Spawner.DeleteEnemy(collision.gameObject.GetComponent<Enemy>());
         
         Destroy(gameObject);
 
