@@ -2,60 +2,76 @@ using UnityEngine;
 using Unity.Networking.Transport;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.SceneManagement;
 
 public class Client : MonoBehaviour
 {
+    [SerializeField] GameObject LoadingText;
+
     private byte colorCode;
     private Player player;
     private Player playerPrefab;
-    private List<Player> players = new List<Player>();
+    private readonly List<Player> players = new List<Player>();
 
     private Bullet bulletPrefab;
-    private Dictionary<ushort, Bullet> activeBullets = new ();
+    private readonly Dictionary<ushort, Bullet> activeBullets = new ();
 
-    public NetworkDriver m_Driver;
-    public NetworkConnection m_Connection;
+    public NetworkDriver Driver;
+    public NetworkConnection Connection;
     public bool Connected;
+
+    private float connectingTime = 0;
 
     private void Awake()
     {
-        if (!NetworkManager.isHost)
-            enabled = true;
-
         playerPrefab = Resources.Load<Player>("Player");
         bulletPrefab = Resources.Load<Bullet>("Bullet");
+
+        if (!NetworkManager.isHost)
+            enabled = true;
+        else
+            LoadingText.SetActive(false);
     }
 
     void Start()
     {
-        m_Driver = NetworkDriver.Create();
-        m_Connection = default(NetworkConnection);
+        GameObject.Find("Start Button").SetActive(false);
+
+        Driver = NetworkDriver.Create();
+        Connection = default(NetworkConnection);
 
         var endpoint = NetworkEndPoint.Parse(NetworkManager.IPAddress, NetworkManager.IPPort);
-        m_Connection = m_Driver.Connect(endpoint);
+        Connection = Driver.Connect(endpoint);
     }
 
     public void OnDestroy()
     {
-        m_Driver.Dispose();
+        Driver.Dispose();
     }
 
     void Update()
     {
-        m_Driver.ScheduleUpdate().Complete();
+        Driver.ScheduleUpdate().Complete();
 
-        if (!m_Connection.IsCreated)
-        {
+        if (!Connection.IsCreated)
             return;
+
+        connectingTime += Time.deltaTime;
+        if (connectingTime >= 5)
+        {
+            NetworkManager.FailReason = "Server is unreachable";
+            SceneManager.LoadScene(0);
         }
+
         DataStreamReader stream;
         NetworkEvent.Type cmd;
-        while ((cmd = m_Connection.PopEvent(m_Driver, out stream)) != NetworkEvent.Type.Empty)
+        while ((cmd = Connection.PopEvent(Driver, out stream)) != NetworkEvent.Type.Empty)
         {
+            connectingTime = 0;
             if (cmd == NetworkEvent.Type.Connect)
             {
                 Debug.Log("We are now connected to the server");
-                m_Driver.SendSSPMessage(m_Connection, new ConnectReq() { Name = "Vasya" });
+                Driver.SendSSPMessage(Connection, new ConnectReq() { Name = NetworkManager.Name });
             }
             else if (cmd == NetworkEvent.Type.Data)
             {
@@ -67,9 +83,22 @@ public class Client : MonoBehaviour
                     Debug.Log("Connect Ack!");
                     colorCode = ((ConnectAck)message).ColorCode;
 
-                    m_Driver.SendSSPMessage(m_Connection, new ConnectOk());
+                    Driver.SendSSPMessage(Connection, new ConnectOk());
+
                     Connected = true;
+                    LoadingText.SetActive(false);
                 }
+                else if (message is ConnectFail)
+                {
+                    Debug.Log("Connect Fail!");
+                    NetworkManager.FailReason = ((ConnectFail)message).Reason.ToString();
+                    SceneManager.LoadScene(0);
+                }
+                //else if (message is Disconnect)
+                //{
+                //    Debug.Log("Disconnect!");
+                //    SceneManager.LoadScene(1);
+                //}
                 #endregion
 
                 #region ServerBehaviour
@@ -118,7 +147,6 @@ public class Client : MonoBehaviour
                 {
                     SetEnemies msg = (SetEnemies)message;
                     Enemy_Spawner.SetEnemies(msg.amount, msg.enemyPositions);
-                    Debug.Log(msg.amount);
                 }
                 else if (message is AddBullet)
                 {
@@ -148,25 +176,27 @@ public class Client : MonoBehaviour
             else if (cmd == NetworkEvent.Type.Disconnect)
             {
                 Debug.Log("Client got disconnected from server");
-                m_Connection = default(NetworkConnection);
+                Connection = default(NetworkConnection);
+                NetworkManager.FailReason = "Server disconnected";
+                SceneManager.LoadScene(0);
             }
         }
 
         if (Input.GetMouseButtonDown(0))
-            m_Driver.SendSSPMessage(m_Connection, new CommandShoot());
+            Driver.SendSSPMessage(Connection, new CommandShoot());
     }
 
     private void FixedUpdate()
     {
-        if (!m_Connection.IsCreated || !Connected || player == null)
+        if (!Connection.IsCreated || !Connected || player == null)
         {
             return;
         }
 
-        m_Driver.SendSSPMessage(m_Connection, new CommandMove()
+        Driver.SendSSPMessage(Connection, new CommandMove()
         {
             direction = new Vector2(Input.GetKey(KeyCode.D) ? 1 : Input.GetKey(KeyCode.A) ? -1 : 0, Input.GetKey(KeyCode.W) ? 1 : Input.GetKey(KeyCode.S) ? -1 : 0)
         });
-        m_Driver.SendSSPMessage(m_Connection, new CommandLook() { playerCode = player.colorCode, rotationZ = player.transform.rotation.eulerAngles.z });
+        Driver.SendSSPMessage(Connection, new CommandLook() { playerCode = player.colorCode, rotationZ = player.transform.rotation.eulerAngles.z });
     }
 }

@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
@@ -11,7 +12,12 @@ public class Player : MonoBehaviour
     public static readonly Color[] colors = { Color.red, Color.yellow / 2 + Color.red, Color.yellow, Color.green, Color.cyan, Color.blue, Color.magenta };
     public Color color;
 
-    public string Name;
+    public string Name
+    {
+        get => transform.GetComponentInChildren<TMP_Text>().text;
+        set => transform.GetComponentInChildren<TMP_Text>().text = value;
+    }
+
     public byte colorCode;
     public bool local;
 
@@ -43,6 +49,8 @@ public class Player : MonoBehaviour
 
     void Update()
     {
+        transform.GetComponentInChildren<Canvas>().transform.rotation = Quaternion.identity;
+
         if (!local)
             return;
 

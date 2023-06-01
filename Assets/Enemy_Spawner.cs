@@ -7,19 +7,24 @@ public class Enemy_Spawner : MonoBehaviour
     private static readonly List<Enemy> enemies = new ();
     public static IReadOnlyList<Enemy> Enemies => enemies;
 
+    public static bool isActive { get; set; } = false;
+
     private float time = 0;
     [SerializeField] private float delay = 4.5f;
 
     [SerializeField] private Vector2 mapSize = new Vector2(11, 7);
 
-    private void Start()
+    private void Awake()
     {
         prefab = Resources.Load<Enemy>("Enemy");
+        enemies.Clear();
+        isActive = false;
+        time = 0;
     }
 
     void Update()
     {
-        if (!NetworkManager.isHost)
+        if (!NetworkManager.isHost || !isActive)
             return;
 
         time += Time.deltaTime;

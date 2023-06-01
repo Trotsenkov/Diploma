@@ -8,8 +8,6 @@ public enum MessageCode : byte
     ConnectAck = 11,
     ConnectFail = 12,
     ConnectOk = 13,
-    Disconnect = 15,
-    DisconnectOk = 16,
 
     UpdatePlayersList = 20,
     UpdatePlayerPosition = 21,
@@ -49,7 +47,7 @@ public class ConnectAck : Message
 
 public class ConnectFail : Message
 {
-    public enum FailReason { ServerOverflow = 0, NameExists = 1, Unexpected = 2 }
+    public enum FailReason { ServerOverflow = 0, NameExists = 1, GameIsAlreadyStarted = 2, Unexpected = 3 }
     public FailReason Reason;
     public ConnectFail()
     {
@@ -62,22 +60,6 @@ public class ConnectOk : Message
     public ConnectOk()
     {
         Code = MessageCode.ConnectOk;
-    }
-}
-
-public class Disconnect : Message
-{
-    public Disconnect()
-    {
-        Code = MessageCode.Disconnect;
-    }
-}
-
-public class DisconnectOk : Message
-{
-    public DisconnectOk()
-    {
-        Code = MessageCode.DisconnectOk;
     }
 }
 #endregion
@@ -192,10 +174,10 @@ public static class MessageExtensions
         else if (code == MessageCode.ConnectOk)
             return new ConnectOk();
 
-        //ServerNehaviour
+        //ServerBehaviour
         else if (code == MessageCode.UpdatePlayersList)
         {
-            UpdatePlayersList message = new ();
+            UpdatePlayersList message = new();
 
             message.amount = stream.ReadByte();
             message.playerDatas = new Tuple<string, byte>[message.amount];
@@ -207,14 +189,14 @@ public static class MessageExtensions
         }
 
         else if (code == MessageCode.UpdatePlayerPosition)
-            return new UpdatePlayerPosition() { playerCode = stream.ReadByte(), position = new Vector2(stream.ReadFloat(), stream.ReadFloat())/*, rotationZ = stream.ReadFloat()*/ };
+            return new UpdatePlayerPosition() { playerCode = stream.ReadByte(), position = new Vector2(stream.ReadFloat(), stream.ReadFloat())};
 
         else if (code == MessageCode.UpdatePlayerHP)
             return new UpdatePlayerHP() { colorCode = stream.ReadByte(), HP = stream.ReadByte() };
 
         else if (code == MessageCode.SetEnemies)
         {
-            SetEnemies message = new ();
+            SetEnemies message = new();
 
             message.amount = stream.ReadByte();
             message.enemyPositions = new Vector2[message.amount];
@@ -271,10 +253,6 @@ public static class MessageExtensions
             writer.WriteByte((byte)msg.Reason);
         }
         else if (message is ConnectOk)
-        { }
-        else if (message is Disconnect)
-        { }
-        else if (message is DisconnectOk)
         { }
         #endregion
 
