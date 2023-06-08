@@ -79,7 +79,6 @@ public class UpdatePlayerPosition : Message
 {
     public byte playerCode;
     public Vector2 position;
-    //public float rotationZ;
     public UpdatePlayerPosition()
     {
         Code = MessageCode.UpdatePlayerPosition;
@@ -161,7 +160,8 @@ public static class MessageExtensions
     public static Message RecieveSSPMessage(this DataStreamReader stream)
     {
         MessageCode code = (MessageCode)stream.ReadByte();
-        //Connection
+
+        #region Connection
         if (code == MessageCode.ConnectReq)
             return new ConnectReq() { Name = stream.ReadFixedString32().ToString() };
 
@@ -173,8 +173,9 @@ public static class MessageExtensions
 
         else if (code == MessageCode.ConnectOk)
             return new ConnectOk();
+        #endregion
 
-        //ServerBehaviour
+        #region ServerBehaviour
         else if (code == MessageCode.UpdatePlayersList)
         {
             UpdatePlayersList message = new();
@@ -212,8 +213,9 @@ public static class MessageExtensions
 
         else if (code == MessageCode.RemBullet)
             return new RemBullet() { bulletID = stream.ReadUShort() };
+        #endregion
 
-        //Commands
+        #region Commands
         else if (code == MessageCode.CommandMove)
         {
             CommandMove message = new CommandMove();
@@ -227,16 +229,17 @@ public static class MessageExtensions
 
         else if (code == MessageCode.CommandShoot)
             return new CommandShoot();
+        #endregion
 
         throw new Exception("Unknown message type");
     }
 
     public static void SendSSPMessage(this NetworkDriver m_Driver, NetworkConnection m_Connection, Message message)
     {
-        #region Connection
         m_Driver.BeginSend(m_Connection, out var writer);
         writer.WriteByte((byte)message.Code);
 
+        #region Connection
         if (message is ConnectReq)
         {
             ConnectReq msg = (ConnectReq)message;

@@ -11,7 +11,7 @@ public class Client : MonoBehaviour
     private byte colorCode;
     private Player player;
     private Player playerPrefab;
-    private readonly List<Player> players = new List<Player>();
+    private readonly List<Player> players = new ();
 
     private Bullet bulletPrefab;
     private readonly Dictionary<ushort, Bullet> activeBullets = new ();
@@ -46,7 +46,8 @@ public class Client : MonoBehaviour
 
     public void OnDestroy()
     {
-        Driver.Dispose();
+        if (Driver.IsCreated)
+            Driver.Dispose();
     }
 
     void Update()
@@ -63,9 +64,8 @@ public class Client : MonoBehaviour
             SceneManager.LoadScene(0);
         }
 
-        DataStreamReader stream;
         NetworkEvent.Type cmd;
-        while ((cmd = Connection.PopEvent(Driver, out stream)) != NetworkEvent.Type.Empty)
+        while ((cmd = Connection.PopEvent(Driver, out var stream)) != NetworkEvent.Type.Empty)
         {
             connectingTime = 0;
             if (cmd == NetworkEvent.Type.Connect)
@@ -94,11 +94,6 @@ public class Client : MonoBehaviour
                     NetworkManager.FailReason = ((ConnectFail)message).Reason.ToString();
                     SceneManager.LoadScene(0);
                 }
-                //else if (message is Disconnect)
-                //{
-                //    Debug.Log("Disconnect!");
-                //    SceneManager.LoadScene(1);
-                //}
                 #endregion
 
                 #region ServerBehaviour
@@ -129,7 +124,7 @@ public class Client : MonoBehaviour
 
                     Player plr = players.Find(player => player.colorCode == msg.playerCode);
                     if (plr == null)
-                        continue;//Ask for UpdatePlayersList
+                        continue;
 
                     plr.transform.position = msg.position;
                 }
@@ -139,7 +134,7 @@ public class Client : MonoBehaviour
 
                     Player plr = players.Find(player => player.colorCode == msg.colorCode);
                     if (plr == null)
-                        continue;//Ask for UpdatePlayersList
+                        continue;
 
                     plr.HP = msg.HP;
                 }
@@ -167,7 +162,7 @@ public class Client : MonoBehaviour
                     CommandLook msg = (CommandLook)message;
                     Player plr = players.Find(player => player.colorCode == msg.playerCode);
                     if (plr == null)
-                        continue;//Ask for UpdatePlayersList
+                        continue;
 
                     plr.transform.rotation = Quaternion.Euler(0, 0, msg.rotationZ);
                 }
@@ -177,7 +172,6 @@ public class Client : MonoBehaviour
             {
                 Debug.Log("Client got disconnected from server");
                 Connection = default(NetworkConnection);
-                NetworkManager.FailReason = "Server disconnected";
                 SceneManager.LoadScene(0);
             }
         }
@@ -189,9 +183,7 @@ public class Client : MonoBehaviour
     private void FixedUpdate()
     {
         if (!Connection.IsCreated || !Connected || player == null)
-        {
             return;
-        }
 
         Driver.SendSSPMessage(Connection, new CommandMove()
         {

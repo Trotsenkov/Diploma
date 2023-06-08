@@ -70,10 +70,15 @@ public class Host : MonoBehaviour
     void Start()
     {
         Driver = NetworkDriver.Create();
+
         var endpoint = NetworkEndPoint.AnyIpv4;
         endpoint.Port = NetworkManager.IPPort;
+
         if (Driver.Bind(endpoint) != 0)
-            Debug.Log("Failed to bind to port 9000");
+        {
+            NetworkManager.FailReason = "Port 9000 is busy";
+            SceneManager.LoadScene(0);
+        }
         else
             Driver.Listen();
     }
@@ -81,9 +86,7 @@ public class Host : MonoBehaviour
     void OnDestroy()
     {
         if (Driver.IsCreated)
-        {
             Driver.Dispose();
-        }
     }
 
     void Update()
@@ -103,7 +106,6 @@ public class Host : MonoBehaviour
             Debug.Log("Accepted a connection");
         }
 
-        DataStreamReader stream;
         for (int i = 0; i < Connections.Count; i++)
         {
             if (connectingTime.ContainsKey(Connections[i]))
@@ -126,14 +128,12 @@ public class Host : MonoBehaviour
                 continue;
 
             NetworkEvent.Type cmd;
-            while ((cmd = Driver.PopEventForConnection(Connections[i], out stream)) != NetworkEvent.Type.Empty)
+            while ((cmd = Driver.PopEventForConnection(Connections[i], out var stream)) != NetworkEvent.Type.Empty)
             {
                 if (cmd == NetworkEvent.Type.Data)
                 {
                     if (connectingTime.ContainsKey(Connections[i]))
                         connectingTime[Connections[i]] = 0;
-                    else
-                        connectingTime.Add(Connections[i], 0);
 
                     #region Connection
                     Message message = stream.RecieveSSPMessage();
@@ -209,11 +209,12 @@ public class Host : MonoBehaviour
                 else if (cmd == NetworkEvent.Type.Disconnect)
                 {
                     Debug.Log("Client disconnected from server");
-                    clients.Remove(Connections[i]);// = default(NetworkConnection);
+                    clients.Remove(Connections[i]);
                 }
             }
         }
     }
+
     private void FixedUpdate()
     {
         foreach (NetworkConnection connection in Connections)
@@ -251,7 +252,6 @@ public class Host : MonoBehaviour
         yield return null;
 
         SceneManager.LoadScene(0);
-
     }
 
     public void SetPlayerHP(Player player)
